@@ -6,6 +6,8 @@ import './App.css';
 // import AfterSwapDonationHook from './json/AfterSwapDonationHook.json';
 import {AfterSwapDonationHook__factory, MockERC20__factory} from './contracts/index';
 import { useSyncProviders } from './useSyncProviders';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const App: React.FC = () => {
 
@@ -69,11 +71,28 @@ const App: React.FC = () => {
   }
 
   const handleDisapprove = async() => {
+    if (!donationAddress) {
+      alert('Please enter donation address');
+      return;
+    }
+
+    try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      const donationHookContract = AfterSwapDonationHook__factory.connect(AfterSwapDonationHook_Addr, signer);
+      const receipt = await donationHookContract.disableDonation();
+      toast.success("Successfully removed donation settings", {
+        position: "bottom-right",
+      });
+    } catch (error) {
+      // rejected by user or failed on the network
+      console.error(error);
+    }
   }
 
   const enableDonation = async() => {
-    if (!ethAddress || !donationAddress) {
-      alert('Please enter all details');
+    if (!donationAddress) {
+      alert('Please enter donation address');
       return;
     }
 
@@ -187,7 +206,7 @@ const App: React.FC = () => {
     // </div>
 
     <div className="App">
-      <h2>Wallets Detected:</h2>
+      <h2>Donation Settings:</h2>
       <div className="providers">
         {providers.length > 0 ? (
           
@@ -204,7 +223,7 @@ const App: React.FC = () => {
 
            <div className="container">
              <div className="content">
-               <h1>ERC-20 Approve</h1>
+               <h1>Donatiol approval / disapproval</h1>
               {/* Dropdown combo for Ethereum addresses */}
               <select 
                  value={selectedAddress} 
@@ -216,7 +235,7 @@ const App: React.FC = () => {
                &nbsp;&nbsp;
                <input
                  type="text"
-                 placeholder={AfterSwapDonationHook_Addr}
+                 placeholder="Donation recipient address"
                  value={donationAddress}
                  onChange={(e) => setDonationAddress(e.target.value)}
                  size={42}  // Dynamically set size based on input length
@@ -224,7 +243,7 @@ const App: React.FC = () => {
                &nbsp;&nbsp;
                <input
                  type="text"
-                 placeholder="Amount to approve"
+                 placeholder="Percent of transaction to donate"
                  value={approvalAmount}
                  onChange={(e) => setApprovalAmount(e.target.value)}
                />
@@ -238,7 +257,7 @@ const App: React.FC = () => {
                <button onClick={handleDisapprove} disabled={btnDisapproveDisabled}>Disapprove</button>
              </div>
            </div>
-
+           <ToastContainer /> 
           </>
         ) : (
           <div>No Announced Wallet Providers</div>

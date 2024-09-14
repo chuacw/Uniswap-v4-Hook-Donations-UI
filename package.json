@@ -11,15 +11,16 @@
   },
   "dependencies": {
     "@metamask/sdk-react": "^0.28.3",
-    "ethers": "^6.13.2",
+    "ethers": "^5.7.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-toastify": "^10.0.5",
     "uniswaphook-donations-ui": "file:",
     "web3": "^4.12.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.0",
-    "@typechain/ethers-v6": "^0.5.1",
+    "@typechain/ethers-v5": "^11.1.2",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
