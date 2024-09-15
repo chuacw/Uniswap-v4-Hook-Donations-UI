@@ -385,46 +385,23 @@ export interface AfterSwapDonationHookInterface extends utils.Interface {
   ): Result;
 
   events: {
-    "Donated(address,uint256)": EventFragment;
-    "DonationDisabled(address,uint256)": EventFragment;
-    "DonationEnabled(address,uint256)": EventFragment;
+    "Donation(address,address,uint256)": EventFragment;
   };
 
-  getEvent(nameOrSignatureOrTopic: "Donated"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "DonationDisabled"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "DonationEnabled"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "Donation"): EventFragment;
 }
 
-export interface DonatedEventObject {
+export interface DonationEventObject {
+  payee: string;
   recipient: string;
   donatedAmount: BigNumber;
 }
-export type DonatedEvent = TypedEvent<[string, BigNumber], DonatedEventObject>;
-
-export type DonatedEventFilter = TypedEventFilter<DonatedEvent>;
-
-export interface DonationDisabledEventObject {
-  recipient: string;
-  percent: BigNumber;
-}
-export type DonationDisabledEvent = TypedEvent<
-  [string, BigNumber],
-  DonationDisabledEventObject
+export type DonationEvent = TypedEvent<
+  [string, string, BigNumber],
+  DonationEventObject
 >;
 
-export type DonationDisabledEventFilter =
-  TypedEventFilter<DonationDisabledEvent>;
-
-export interface DonationEnabledEventObject {
-  recipient: string;
-  percent: BigNumber;
-}
-export type DonationEnabledEvent = TypedEvent<
-  [string, BigNumber],
-  DonationEnabledEventObject
->;
-
-export type DonationEnabledEventFilter = TypedEventFilter<DonationEnabledEvent>;
+export type DonationEventFilter = TypedEventFilter<DonationEvent>;
 
 export interface AfterSwapDonationHook extends BaseContract {
   connect(signerOrProvider: Signer | Provider | string): this;
@@ -854,32 +831,16 @@ export interface AfterSwapDonationHook extends BaseContract {
   };
 
   filters: {
-    "Donated(address,uint256)"(
+    "Donation(address,address,uint256)"(
+      payee?: string | null,
       recipient?: string | null,
       donatedAmount?: null
-    ): DonatedEventFilter;
-    Donated(
+    ): DonationEventFilter;
+    Donation(
+      payee?: string | null,
       recipient?: string | null,
       donatedAmount?: null
-    ): DonatedEventFilter;
-
-    "DonationDisabled(address,uint256)"(
-      recipient?: string | null,
-      percent?: null
-    ): DonationDisabledEventFilter;
-    DonationDisabled(
-      recipient?: string | null,
-      percent?: null
-    ): DonationDisabledEventFilter;
-
-    "DonationEnabled(address,uint256)"(
-      recipient?: string | null,
-      percent?: null
-    ): DonationEnabledEventFilter;
-    DonationEnabled(
-      recipient?: string | null,
-      percent?: null
-    ): DonationEnabledEventFilter;
+    ): DonationEventFilter;
   };
 
   estimateGas: {

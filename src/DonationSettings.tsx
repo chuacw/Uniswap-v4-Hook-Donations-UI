@@ -24,7 +24,7 @@ const DonationSettings: React.FC = () => {
 
   const accountRef = useRef<HTMLLabelElement>(null);
   
-  const debug = true;
+  const debug = false;
   const providers = useSyncProviders();
 
   const [account, setAccountAddr] = useState<string>("Not connected");
@@ -63,10 +63,6 @@ const DonationSettings: React.FC = () => {
     await handleConnect(providers[0]);
   }
 
-  useEffect(() => {
-    updateCurrencySymbolDisplay(zeroForOne);
-  }, [zeroForOne, web3Provider]); // Only re-run the effect if zeroForOne or web3Provider changes
-
   const testToast = () => {
     toast.success("Click here now", {
       ...TOAST_SETTINGS,
@@ -77,7 +73,10 @@ const DonationSettings: React.FC = () => {
   }
 
   const updateCurrencySymbolDisplay = async (zeroForOne: boolean) => {
-    const provider = web3Provider!; // new ethers.providers.Web3Provider(window.ethereum);
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    if (provider == undefined) {
+      return;
+    }
     const Token0Contract = MockERC20__factory.connect(TOKEN0_ADDR, provider);
     const Token1Contract = MockERC20__factory.connect(TOKEN1_ADDR, provider);
     let symbol0 = await Token0Contract.symbol();
@@ -111,7 +110,9 @@ const DonationSettings: React.FC = () => {
       // convert swap amount to 1 unit
       const swapAmountInUnit = ethers.utils.parseUnits(swapAmount); // assuming swapAmount is in units
       const bnSwapAmount = BigNumber.from(swapAmountInUnit);
-      const tx_Swap = await swapHelper.Swap(true, bnSwapAmount);
+      const tx_Swap = await swapHelper.Swap(true, bnSwapAmount, {
+        gasLimit: 1000000
+      });
       toast.success(`Submitting swapping request of ${swapAmount} from ${currency0Symbol} to ${currency1Symbol}...`, TOAST_SETTINGS);
     } catch (error) {
       console.error(error);
@@ -119,9 +120,9 @@ const DonationSettings: React.FC = () => {
     }
   }
 
-  const handleZeroForOneChange = () => {
+  const handleZeroForOneChange = async () => {
       setZeroForOne(!zeroForOne);
-      updateCurrencySymbolDisplay(!zeroForOne);
+      await updateCurrencySymbolDisplay(!zeroForOne);
   }
 
   const handleGetBalance = async () => {
@@ -172,8 +173,9 @@ const DonationSettings: React.FC = () => {
             const donatedAmount = ethers.utils.formatUnits(rawAmount);
             const successful = logData.args[2];
             if (successful) {
-              toast.success(`Successfully donated ${donatedAmount} to ${recipient}. Click to view transaction.`, {...TOAST_SETTINGS,
-                onClick: () => {
+              toast.success(`Successfully donated ${donatedAmount} to ${recipient}. Click to view transaction.`, 
+                {...TOAST_SETTINGS,
+                  onClick: () => {
                   var win = window.open(`https://sepolia.etherscan.io/tx/${txHash}`, '_blank');
                 }
               });
@@ -183,22 +185,34 @@ const DonationSettings: React.FC = () => {
             break;
           }
           case EVENT_DonationDisabled: {
+            const txHash = log.transactionHash;
             const abi = ["event DonationDisabled(address indexed recipient, uint256 percent)"];
             let iface = new ethers.utils.Interface(abi);
             const logData = iface.parseLog(log as any);
             const recipient = logData.args[0];
             let account = accountRef.current!.textContent;
-            toast.success(`Successfully disabled donation for ${account} to ${recipient}`, TOAST_SETTINGS);
+            toast.success(`Successfully disabled donation for ${account} to ${recipient}. Click to view transaction.`, 
+              {...TOAST_SETTINGS,
+                onClick: () => {
+                  var win = window.open(`https://sepolia.etherscan.io/tx/${txHash}`, '_blank');
+                }
+              });
             break;
           }
           case EVENT_DonationEnabled: {
+            const txHash = log.transactionHash;
             const abi = ["event DonationEnabled(address indexed recipient, uint256 percent)"];
             let iface = new ethers.utils.Interface(abi);
             const logData = iface.parseLog(log as any);
             const recipient = logData.args[0];
             const donatePercent = logData.args[1];
             let account = accountRef.current!.textContent;
-            toast.success(`Successfully enabled donation for ${account} to ${recipient} of ${donatePercent}%!`, TOAST_SETTINGS);
+            toast.success(`Successfully enabled donation for ${account} to ${recipient} of ${donatePercent}%!. Click to view transaction.`, 
+              {...TOAST_SETTINGS,
+                onClick: () => {
+                  var win = window.open(`https://sepolia.etherscan.io/tx/${txHash}`, '_blank');
+                }
+              });
             break;
           }
           default: {
@@ -246,7 +260,8 @@ const DonationSettings: React.FC = () => {
     try {
       setProvider(providerWithInfo.provider);
       // providerInfo.setProvider(providerWithInfo);
-      console.log("thisProvider: ", thisProvider);
+      const lProvider = providerWithInfo.provider;
+      console.log("thisProvider: ", lProvider);
       const accounts = (await providerWithInfo.provider.request({
         method: "eth_requestAccounts",
       })) as string[];
@@ -259,7 +274,7 @@ const DonationSettings: React.FC = () => {
 
         setWeb3Provider(provider);
         setupProviderEvents(provider);
-        setupCurrencySymbols(provider);
+        await setupCurrencySymbols(provider);
 
         window.ethereum.removeListener("accountsChanged", accountsChanged);
         window.ethereum.on("accountsChanged", accountsChanged);
@@ -337,7 +352,6 @@ const DonationSettings: React.FC = () => {
 
     try {
 
-      // const donationHookContract = new ethers.Contract(AfterSwapDonationHook_Addr, AfterSwapDonationHook.abi, signer)
       const donationHookContract = AfterSwapDonationHook__factory.connect(AfterSwapDonationHook_ADDR, signer);
 
       const address = ethers.utils.hexZeroPad(donationAddress, 20);
