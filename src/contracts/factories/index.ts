@@ -3,3 +3,4 @@
 /* eslint-disable */
 export { AfterSwapDonationHook__factory } from "./AfterSwapDonationHook__factory";
 export { MockERC20__factory } from "./MockERC20__factory";
+export { SwapHelper__factory } from "./SwapHelper__factory";

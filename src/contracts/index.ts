@@ -3,6 +3,8 @@
 /* eslint-disable */
 export type { AfterSwapDonationHook } from "./AfterSwapDonationHook";
 export type { MockERC20 } from "./MockERC20";
+export type { SwapHelper } from "./SwapHelper";
 export * as factories from "./factories";
 export { AfterSwapDonationHook__factory } from "./factories/AfterSwapDonationHook__factory";
 export { MockERC20__factory } from "./factories/MockERC20__factory";
+export { SwapHelper__factory } from "./factories/SwapHelper__factory";
