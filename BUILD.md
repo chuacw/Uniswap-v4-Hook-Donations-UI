@@ -4,6 +4,11 @@
 2. From the Uniswap Donations project, copy/update the token0, token1, AfterSwapDonationHook and SwapHelper addresses into Constants.tsx
 3. You can now run the Uniswap Donations UI!
 
+# Testing
+To test the code, run the following command:
+```
+forge.exe test -vvv
+```
 
 Chee-Wee Chua,  
 15 Nep 2024,  
