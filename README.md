@@ -8,7 +8,7 @@ There can only be one donation recipient at a time.
 
 When you enable donations, you'll need to specify the recipient and the percentage to donate.
 
-After enabling donations, whenever you perform a swap, the specified amount of the percentage (of the first currency) will be sent to the specified recipient.
+After enabling donations, whenever you perform a swap, the specified amount (in percentage of the swap amount) will be sent to the specified recipient.
 
 # Building the project
 See the [BUILD.md](./BUILD.md) for instructions
