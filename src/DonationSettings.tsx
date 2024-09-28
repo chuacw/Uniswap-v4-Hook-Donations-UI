@@ -3,11 +3,10 @@ import './App.css';
 import { ethers, Transaction, BigNumber } from 'ethers';
 import { AfterSwapDonationHook__factory, MockERC20__factory } from './contracts/index';
 import { Log } from 'web3';
-import { useSyncProviders } from './useSyncProviders';
 
 import {
   AfterSwapDonationHook_ADDR,
-  EVENT_Donated, EVENT_DonationDisabled, EVENT_DonationEnabled, RECIPIENT1, RECIPIENT2,
+  EVENT_Donated, EVENT_DonationDisabled, EVENT_DonationEnabled, RECIPIENT1, 
   TOAST_SETTINGS, TOKEN0_ADDR, TOKEN1_ADDR, WALLET_ADDR, SWAPHELPER_ADDR
 } from './Constants';
 
@@ -17,18 +16,21 @@ import 'react-toastify/dist/ReactToastify.css';
 import { Tooltip } from 'react-tooltip'
 import 'react-tooltip/dist/react-tooltip.css';
 
-import { SwapHelper, SwapHelper__factory } from './contracts/index';
+import { SwapHelper__factory } from './contracts/index';
+import { hasMessageField } from 'delphirtl/sysutils';
+import { useEip6963SyncProviders, EIP6963ProviderDetail, type EIP1193Provider} from 'web3-walletutils';
 
 
 const DonationSettings: React.FC = () => {
 
   const accountRef = useRef<HTMLLabelElement>(null);
-  
-  const debug = false;
-  const providers = useSyncProviders();
 
-  const [account, setAccountAddr] = useState<string>("Not connected");
-  // const account = useRef("Not connected");
+  const debug = false;
+  const providers = useEip6963SyncProviders();
+
+  const NOT_CONNECTED = "Not connected";
+
+  const [account, setAccountAddr] = useState<string>(NOT_CONNECTED);
 
   const [ethAddress, setAccount] = useState<string>(WALLET_ADDR);
   const [donationAddress, setDonationAddress] = useState<string>(RECIPIENT1);
@@ -37,24 +39,13 @@ const DonationSettings: React.FC = () => {
   const [currency0Symbol, setCurrency0Symbol] = useState<string>('?');
   const [currency1Symbol, setCurrency1Symbol] = useState<string>('?');
 
-  const [btnEnableDonationDisabled, set_btnEnableDonationDisabled] = useState(true)
-  const [btnDisableDonationDisabled, set_btnDisableDonationDisabled] = useState(true)
+  const [btnEnableDonationDisabled, set_btnEnableDonationDisabled] = useState(true);
+  const [btnDisableDonationDisabled, set_btnDisableDonationDisabled] = useState(true);
   const [thisProvider, setProvider] = useState<EIP1193Provider>();
   const [web3Provider, setWeb3Provider] = useState<ethers.providers.Web3Provider>();
 
   const [zeroForOne, setZeroForOne] = useState(true);
   const [swapAmount, setSwapAmount] = useState<string>('0');
-
-  // const { sdk, connected, connecting, provider, chainId, account } = useSDK();
-
-  // const connect = async () => {
-  //   try {
-  //     // const accounts = await sdk?.connect();
-  //     // setAccount(accounts?.[0]);
-  //   } catch (err) {
-  //     console.warn("failed to connect..", err);
-  //   }
-  // };
 
   const connectWallet = async () => {
     if (providers.length < 1) {
@@ -72,24 +63,11 @@ const DonationSettings: React.FC = () => {
     })
   }
 
-  const updateCurrencySymbolDisplay = async (zeroForOne: boolean) => {
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
-    if (provider == undefined) {
+  const updateCurrencySymbolDisplay = async () => {
+    if ((web3Provider == undefined) || (account == NOT_CONNECTED)) {
       return;
     }
-    const Token0Contract = MockERC20__factory.connect(TOKEN0_ADDR, provider);
-    const Token1Contract = MockERC20__factory.connect(TOKEN1_ADDR, provider);
-    let symbol0 = await Token0Contract.symbol();
-    let symbol1 = await Token1Contract.symbol();
-
-    if (!zeroForOne) {
-      let temp = symbol0;
-      symbol0 = symbol1;
-      symbol1 = temp;
-    }
-
-    setCurrency0Symbol(symbol0);
-    setCurrency1Symbol(symbol1);
+    await setupCurrencySymbols(web3Provider);
   }
 
   const handleSwap = async () => {
@@ -110,19 +88,36 @@ const DonationSettings: React.FC = () => {
       // convert swap amount to 1 unit
       const swapAmountInUnit = ethers.utils.parseUnits(swapAmount); // assuming swapAmount is in units
       const bnSwapAmount = BigNumber.from(swapAmountInUnit);
-      const tx_Swap = await swapHelper.Swap(true, bnSwapAmount, {
-        gasLimit: 1000000
-      });
       toast.success(`Submitting swapping request of ${swapAmount} from ${currency0Symbol} to ${currency1Symbol}...`, TOAST_SETTINGS);
     } catch (error) {
-      console.error(error);
-      toast.error(JSON.stringify(error), TOAST_SETTINGS);
+      if (hasMessageField(error)) {
+        console.error(error.message);
+        toast.error(error.message, TOAST_SETTINGS);
+      }
+      throw error;
     }
   }
 
-  const handleZeroForOneChange = async () => {
-      setZeroForOne(!zeroForOne);
-      await updateCurrencySymbolDisplay(!zeroForOne);
+  useEffect(() => {
+    const updateCurrency = async () => {
+      try {
+      } catch (error) {
+        if (hasMessageField(error)) {
+          console.error('Error fetching data:', error);
+          toast.error(error.message, TOAST_SETTINGS);
+        } else {
+        }
+      }
+    };
+
+    updateCurrency(); // Call the async function    
+
+  }, [zeroForOne])
+
+  const handleZeroForOneChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    let lZeroForOne = e.target.checked;
+    setZeroForOne(lZeroForOne);
+    // await updateCurrencySymbolDisplay(zeroForOne);
   }
 
   const handleGetBalance = async () => {
@@ -145,7 +140,12 @@ const DonationSettings: React.FC = () => {
       console.log("TK0 Balance: ", ethers.utils.formatUnits(Token0Balance));
       console.log("TK1 Balance: ", ethers.utils.formatUnits(Token1Balance));
     } catch (error) {
-      console.error("71 error: ", error)
+      if (hasMessageField(error)) {
+        console.error("144 error: ", error);
+        toast.error(error.message, TOAST_SETTINGS);
+      } else {
+        throw error;
+      }
     }
   }
 
@@ -173,12 +173,12 @@ const DonationSettings: React.FC = () => {
             const donatedAmount = ethers.utils.formatUnits(rawAmount);
             const successful = logData.args[2];
             if (successful) {
-              toast.success(`Successfully donated ${donatedAmount} to ${recipient}. Click to view transaction.`, 
-                {...TOAST_SETTINGS,
+              toast.success(`Successfully donated ${donatedAmount} to ${recipient}. Click to view transaction.`,
+                {
+                  ...TOAST_SETTINGS,
                   onClick: () => {
-                  var win = window.open(`https://sepolia.etherscan.io/tx/${txHash}`, '_blank');
-                }
-              });
+                  }
+                });
             } else {
               toast.error(`Failed to donate to ${recipient}`);
             }
@@ -191,10 +191,10 @@ const DonationSettings: React.FC = () => {
             const logData = iface.parseLog(log as any);
             const recipient = logData.args[0];
             let account = accountRef.current!.textContent;
-            toast.success(`Successfully disabled donation for ${account} to ${recipient}. Click to view transaction.`, 
-              {...TOAST_SETTINGS,
+            toast.success(`Successfully disabled donation for ${account} to ${recipient}. Click to view transaction.`,
+              {
+                ...TOAST_SETTINGS,
                 onClick: () => {
-                  var win = window.open(`https://sepolia.etherscan.io/tx/${txHash}`, '_blank');
                 }
               });
             break;
@@ -207,10 +207,10 @@ const DonationSettings: React.FC = () => {
             const recipient = logData.args[0];
             const donatePercent = logData.args[1];
             let account = accountRef.current!.textContent;
-            toast.success(`Successfully enabled donation for ${account} to ${recipient} of ${donatePercent}%!. Click to view transaction.`, 
-              {...TOAST_SETTINGS,
+            toast.success(`Successfully enabled donation for ${account} to ${recipient} of ${donatePercent}%!. Click to view transaction.`,
+              {
+                ...TOAST_SETTINGS,
                 onClick: () => {
-                  var win = window.open(`https://sepolia.etherscan.io/tx/${txHash}`, '_blank');
                 }
               });
             break;
@@ -224,36 +224,54 @@ const DonationSettings: React.FC = () => {
     }
   }
 
-  const accountsChanged = useCallback((accounts: Array<string>) => {
-    const activeAccount = accounts[0];
-    setAccountAddr(activeAccount);
-    try {
-      toast.success(`Active account changed to: ${activeAccount}`, TOAST_SETTINGS);
-    } catch (error) {
-      console.log("Unknown error: ", error);
-    }
-  }, [account]) 
+  const accountsChanged =
+    useCallback((accounts: Array<string>) => {
+      if (accounts.length == 0) {
+        setAccountAddr(NOT_CONNECTED);
+        return;
+      }
+      const activeAccount = accounts[0];
+      setAccountAddr(activeAccount);
+      try {
+        toast.success(`Active account changed to: ${activeAccount}`, TOAST_SETTINGS);
+      } catch (error) {
+        if (hasMessageField(error)) {
+          console.log("Unknown error: ", error.message);
+          toast.error(error.message, TOAST_SETTINGS);
+        } else {
+          throw error;
+        }
+      }
+    }, [account])
 
-  const beforeUnloadHandler = (event: any) => {
-    event.preventDefault();
+  // const beforeUnloadHandler = (event: any) => {
+  //   event.preventDefault();
 
-    const provider = web3Provider;
- 
-    // Included for legacy support, e.g. Chrome/Edge < 119
-    event.returnValue = true;
-    if (!provider) {
-      return;
-    }
-    provider.removeListener("accountsChanged", accountsChanged);
-  };
+  //   const provider = web3Provider;
+
+  //   // Included for legacy support, e.g. Chrome/Edge < 119
+  //   event.returnValue = true;
+  //   if (!provider) {
+  //     return;
+  //   }
+  //   provider.removeListener("accountsChanged", accountsChanged);
+  // };
 
   const setupCurrencySymbols = async (provider: ethers.providers.Web3Provider) => {
     const Token0Contract = MockERC20__factory.connect(TOKEN0_ADDR, provider);
     const Token1Contract = MockERC20__factory.connect(TOKEN1_ADDR, provider);
     const symbol0 = await Token0Contract.symbol();
     const symbol1 = await Token1Contract.symbol();
-    setCurrency0Symbol(symbol0);
-    setCurrency1Symbol(symbol1);
+    let token0, token1;
+    if (zeroForOne) {
+      token0 = symbol0;
+      token1 = symbol1;
+    } else {
+      token0 = symbol1;
+      token1 = symbol0;
+    }
+    setCurrency0Symbol(token0);
+    setCurrency1Symbol(token1);
   }
 
   async function handleConnect(providerWithInfo: EIP6963ProviderDetail) {
@@ -270,25 +288,29 @@ const DonationSettings: React.FC = () => {
         setAccountAddr(accounts[0]);
         const provider = new ethers.providers.Web3Provider(window.ethereum);
 
-        window.onbeforeunload = beforeUnloadHandler;
+        // window.onbeforeunload = beforeUnloadHandler;
 
+        window.ethereum.removeAllListeners();
+        window.ethereum.removeListener("accountsChanged", accountsChanged);
         setWeb3Provider(provider);
         setupProviderEvents(provider);
         await setupCurrencySymbols(provider);
-
-        window.ethereum.removeListener("accountsChanged", accountsChanged);
         window.ethereum.on("accountsChanged", accountsChanged);
 
         console.log("130 provider: ", provider);
       } else {
         setAccountAddr("Not connected");
+        toast.success("All accounts disconnected", TOAST_SETTINGS);
       }
       const disabledButtons = accounts.length == 0;
       set_btnEnableDonationDisabled(disabledButtons);
       set_btnDisableDonationDisabled(disabledButtons);
       console.log("accounts: ", accounts);
     } catch (error) {
-      console.error("120 error: ", error)
+      if (hasMessageField(error)) {
+        console.error("309 error: ", error.message);
+        toast.error(error.message, TOAST_SETTINGS);
+      }
     }
   }
 
@@ -305,18 +327,18 @@ const DonationSettings: React.FC = () => {
 
         const Token0Contract = MockERC20__factory.connect(TOKEN0_ADDR, signer);
         // withdraw approval
-        const receipt2 = await Token0Contract.approve(AfterSwapDonationHook_ADDR, 0);
+        const receipt2 = await Token0Contract.approve(AfterSwapDonationHook_ADDR, 0);      
         toast.success("Submitted removal of approval for token!", TOAST_SETTINGS);
 
       } else {
         toast.error("Donation is not currently enabled.", TOAST_SETTINGS);
       }
-      // provider.once(receipt.hash, (tx: Transaction) => { 
-      //   console.log("131 tx: ", tx);
-      // })
     } catch (error) {
       // rejected by user or failed on the network
-      console.error("143 error: ", error);
+      if (hasMessageField(error)) {
+        console.error("143 error: ", error.message);
+        toast.error(error.message, TOAST_SETTINGS);
+      }
     }
   }
 
@@ -346,8 +368,10 @@ const DonationSettings: React.FC = () => {
         toast.success(`Submitted "Approve token spending on behalf of wallet to hook" to blockchain`, TOAST_SETTINGS);
       }
     } catch (error) {
-      console.error("215 error: ", error);
-      toast.error(`Failed to submit request: ${error}`, TOAST_SETTINGS);
+      if (hasMessageField(error)) {
+        console.error("215 error: ", error.message);
+        toast.error(`Failed to submit request: ${error.message}`, TOAST_SETTINGS);
+      }
     }
 
     try {
@@ -366,17 +390,18 @@ const DonationSettings: React.FC = () => {
 
       const recipient = address;
       if ((!currentDonationEnabled) || (!currentDonationPercent.eq(BigNumber.from(donatePercent))) ||
-           currentRecipient.toLowerCase() != recipient.toLowerCase()
-         ) {
-        const receipt = await donationHookContract.enableDonation(recipient, donatePercent);
+        currentRecipient.toLowerCase() != recipient.toLowerCase()
+      ) {
         toast.success(`Submitted enable donation request for ${account} to ${recipient} of ${donatePercent}% to blockchain`, TOAST_SETTINGS);
       } else {
         toast.error(`Donation already enabled for ${account} to ${recipient} of ${donatePercent}%!`, TOAST_SETTINGS);
       }
 
     } catch (error) {
-      console.error("169 error: ", error)
-      toast.error(`Error encountered: ${error}`, TOAST_SETTINGS);
+      if (hasMessageField(error)) {
+        console.error("398 error: ", error.message)
+        toast.error(`Error encountered: ${error.message}`, TOAST_SETTINGS);
+      }
     }
 
   }
@@ -393,15 +418,6 @@ const DonationSettings: React.FC = () => {
 
             <div className="container">
               <div className="content">
-                {/* <h1>Donation approval / disapproval</h1> */}
-                {/* Dropdown combo for Ethereum addresses */}
-                {/* <select 
-                 value={selectedAddress} 
-                 onChange={(e) => setSelectedAddress(e.target.value)}
-               >
-                 <option value={WETH_Addr}>WETH</option>
-                 <option value={USDT_Addr}>USDT</option>
-               </select> */}
                 <label>Active Wallet: </label><label ref={accountRef}>{account}</label><br />
                 <Tooltip id="my-tooltip" />
                 &nbsp;&nbsp;
@@ -437,7 +453,10 @@ const DonationSettings: React.FC = () => {
                   <div>
                     <div className="content">
                       <label>
-                        <input type="checkbox" checked={zeroForOne} onChange={handleZeroForOneChange} />Zero For One
+                        <input type="checkbox" checked={zeroForOne} onChange={
+                          async e =>
+                            await handleZeroForOneChange(e)
+                        } />Zero For One
                       </label>
                       <br />
                       Swap

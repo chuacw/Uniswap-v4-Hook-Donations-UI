@@ -17,7 +17,7 @@ const router = createBrowserRouter([
 ]);
 
 createRoot(document.getElementById('root')!).render(
-  
+  <StrictMode>
     <MetaMaskProvider
       debug={false}
       sdkOptions={{
@@ -29,9 +29,10 @@ createRoot(document.getElementById('root')!).render(
         // Other options.
       }}
     >
-      
+
       <RouterProvider router={router} />
-      
+
     </MetaMaskProvider>
-  
+  </StrictMode>
+
 )
