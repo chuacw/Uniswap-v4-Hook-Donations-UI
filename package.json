@@ -19,7 +19,7 @@
     "react-toastify": "^10.0.5",
     "react-tooltip": "^5.28.0",
     "web3": "^4.13.0",
-    "web3-walletutils": "^0.1.27"
+    "web3-walletutils": "^0.1.28"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.0",
